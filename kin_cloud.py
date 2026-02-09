@@ -1,4 +1,10 @@
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse
+from openai import OpenAI
+import json, os, base64
+
+app = FastAPI()
+ request, jsonify
 import requests
 import json
 import os
