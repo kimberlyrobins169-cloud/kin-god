@@ -1,29 +1,23 @@
-from fastapi import FastAPI, Request, UploadFile, File
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from openai import OpenAI
-import json, os, base64
-
-app = FastAPI()
- request, jsonify
 import requests
 import json
 import os
 
-app = Flask(__name__)
+app = FastAPI()
 
 OPENROUTER_API_KEY = "PASTE_YOUR_KEY_HERE"
-
 MEMORY_FILE = "memory.json"
 
 def load_memory():
     if os.path.exists(MEMORY_FILE):
-        with open(MEMORY_FILE,"r") as f:
+        with open(MEMORY_FILE, "r") as f:
             return json.load(f)
     return []
 
 def save_memory(mem):
-    with open(MEMORY_FILE,"w") as f:
-        json.dump(mem,f)
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(mem, f)
 
 HTML_PAGE = """
 <!DOCTYPE html>
@@ -103,7 +97,7 @@ let imgData=null;
 
 if(file){
 let reader=new FileReader();
-reader.onload=()=>{imgData=reader.result; sendNow(msg,imgData);}
+reader.onload=()=>{imgData=reader.result; sendNow(msg,imgData);};
 reader.readAsDataURL(file);
 }else{
 sendNow(msg,null);
@@ -132,19 +126,19 @@ speechSynthesis.speak(speech);
 </html>
 """
 
-@app.route("/")
-def home():
+@app.get("/", response_class=HTMLResponse)
+async def home():
     return HTML_PAGE
 
-@app.route("/ask",methods=["POST"])
-def ask():
-    data=request.json
-    message=data.get("message","")
-    image=data.get("image")
+@app.post("/ask")
+async def ask(request: Request):
+    data = await request.json()
+    message = data.get("message", "")
+    image = data.get("image")
 
-    memory=load_memory()
+    memory = load_memory()
 
-    content=[{"type":"text","text":message}]
+    content = [{"type":"text","text":message}]
 
     if image:
         content.append({
@@ -154,26 +148,21 @@ def ask():
 
     memory.append({"role":"user","content":content})
 
-    response=requests.post(
+    response = requests.post(
         "https://openrouter.ai/api/v1/chat/completions",
         headers={
-            "Authorization":f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type":"application/json"
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json"
         },
         json={
-            "model":"openai/gpt-4o-mini",
-            "messages":[
-                {"role":"system","content":"You are K.I.N, a loyal intelligent AI companion."}
-            ]+memory[-10:]
+            "model": "openai/gpt-4o-mini",
+            "messages": [{"role":"system","content":"You are K.I.N, a loyal intelligent AI companion."}] + memory[-10:]
         }
     )
 
-    reply=response.json()["choices"][0]["message"]["content"]
+    reply = response.json()["choices"][0]["message"]["content"]
 
     memory.append({"role":"assistant","content":reply})
     save_memory(memory)
 
-    return jsonify({"response":reply})
-
-if __name__=="__main__":
-    app.run(host="0.0.0.0",port=10000)
+    return JSONResponse({"response": reply})
